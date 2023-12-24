@@ -41,26 +41,21 @@ io.on('connection', (socket) => {
 
 
     // Событие, которое срабатывает при выстреле
-    socket.on('shoot', () => {
-      // Обрабатываем попадание
-      for (const playerId in players) {
+    socket.on('shoot', (data) => {
+      for (let playerId in players) {
         if (playerId !== socket.id) {
-          const player = players[playerId];
-          if (
-            players[socket.id].x < player.x + 20 &&
-            players[socket.id].x + 20 > player.x &&
-            players[socket.id].y < player.y + 20 &&
-            players[socket.id].y + 20 > player.y
-          ) {
-            player.hp -= 10;
+          if (checkCollision(data, players[playerId])) {
+            console.log("Ура");
+            // Обрабатываем попадание
+            players[playerId].hp -= 10;
 
             // Отправляем информацию о попадании другим игрокам
-            io.emit('hit', { id: playerId, hp: player.hp });
+            io.emit('hit', { id: playerId, hp: players[playerId].hp});
 
             // Если у игрока закончились HP, уведомляем об этом
-            if (player.hp <= 0) {
-              delete players[playerId];
-              io.emit('playerDied', playerId);
+            if (players[playerId].hp <= 0) {
+                delete players[playerId];
+                io.emit('playerDied', playerId);
             }
           }
         }
@@ -78,6 +73,21 @@ io.on('connection', (socket) => {
     });
   });
 });
+
+function checkCollision(bullet, player) {
+    let hit = false;
+    if ((bullet.rotate == 0) && Math.abs(bullet.y - player.y) < 20 && (bullet.x < player.x)) {
+      hit = true;
+    } else if ((bullet.rotate == 180) && Math.abs(bullet.y - player.y) < 20 && (bullet.x > player.x)) {
+      hit = true;
+    } else if ((bullet.rotate == 270) && Math.abs(bullet.x - player.x) < 20 && (bullet.y > player.y)) {
+      hit = true;
+    } else if ((bullet.rotate == 90) && Math.abs(bullet.x - player.x) < 20 && (bullet.y < player.y)) {
+      hit = true;
+    }
+
+    return hit;
+}
 
 app.use(express.static('public'));
 

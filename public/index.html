@@ -27,7 +27,6 @@
 		canvas.height = 600;
 
 		const players = {};
-		const bullets = {};
 
 		socket.on('players', (initialPlayers) => {
 			Object.assign(players, initialPlayers);
@@ -49,15 +48,16 @@
 		});
 
 		
-
 		socket.on('hit', (data) => {
 			const player = players[data.id];
-			if (player) {
-				player.hp = data.hp;
-			}
+			players[data.id].hp = data.hp;
 		});
 
 		socket.on('playerDied', (playerId) => {
+			if (playerId == socket.id) {
+				alert("Вы проиграли! Сыграть ещё раз?");
+				socket.emit('join', playerName);
+			}
 			delete players[playerId];
 		});
 
@@ -68,7 +68,10 @@
 		const animate = () => {
 			var img = new Image();
 			img.src = "ship1.png"
+			var img1 = new Image();
+			img1.src = "fon.jpg"
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			ctx.drawImage(img1, 0, 0);
 
 			for (let playerId in players) {
 				let player = players[playerId];
@@ -77,13 +80,45 @@
 				ctx.translate(player.x, player.y);
 				ctx.rotate(player.rotate * Math.PI / 180 || 0);
 				ctx.drawImage(img, -10, -10, img.width*2, img.height * 2);
+				
 				ctx.restore();
-				ctx.fillStyle = '#F00';
+				ctx.fillStyle = '#FFF';
 				ctx.fillText(`${player.name} (${player.hp} HP)`, player.x, player.y - 15);
 			}
 
 			requestAnimationFrame(animate);
 		};
+
+		function drawBullet(startX, startY, rotation) {
+			const bullet = {
+				x: startX,
+				y: startY,
+				rotate: rotation,
+				startTime: performance.now(),
+			};
+
+			function animateBullet() {
+				const elapsed = performance.now() - bullet.startTime;
+				const alpha = 1 - elapsed / 1000; // Уменьшаем прозрачность за 1 секунду
+
+				if (alpha <= 0) {
+					return; // Анимация завершена
+				}
+
+				ctx.strokeStyle = `rgba(255, 255, 0, ${alpha})`;
+				ctx.lineWidth = 3;
+				ctx.beginPath();
+				ctx.moveTo(bullet.x, bullet.y);
+				const endX = bullet.x + Math.cos(bullet.rotate * (Math.PI / 180)) * 800;
+				const endY = bullet.y + Math.sin(bullet.rotate * (Math.PI / 180)) * 800;
+				ctx.lineTo(endX, endY);
+				ctx.stroke();
+
+				requestAnimationFrame(animateBullet);
+			}
+
+			animateBullet();
+		}
 
 		document.addEventListener('keydown', (event) => {
 			const speed = 5;
@@ -102,7 +137,7 @@
 				case 'ArrowLeft':
 					players[socket.id].x -= speed;
 					players[socket.id].rotate = 180;
-					socket.emit('move', { x: players[socket.id].x, y: players[socket.id].y, rotate: players[socket.id].rotate});
+					socket.emit('move', { x: players[socket.id].x, y: players[socket.id].y, rotate: players[socket.id].rotate });
 					break;
 				case 'ArrowRight':
 					players[socket.id].x += speed;
@@ -110,12 +145,12 @@
 					socket.emit('move', { x: players[socket.id].x, y: players[socket.id].y, rotate: players[socket.id].rotate });
 					break;
 				case ' ':
-					bullets
-					socket.emit('shoot', { x: players[socket.id].x, y: players[socket.id].y, rotate: players[socket.id].rotate });
+					drawBullet(players[socket.id].x, players[socket.id].y, players[socket.id].rotate);
+					socket.emit('shoot', { id: socket.id, x: players[socket.id].x, y: players[socket.id].y, rotate: players[socket.id].rotate });
 			}
 		});
 
-		const playerName = prompt('Enter your name:');
+		const playerName = prompt('Введите своё имя!:');
 		socket.emit('join', playerName);
 	</script>
 </body>
