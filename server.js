@@ -45,7 +45,6 @@ io.on('connection', (socket) => {
       for (let playerId in players) {
         if (playerId !== socket.id) {
           if (checkCollision(data, players[playerId])) {
-            console.log("Ура");
             // Обрабатываем попадание
             players[playerId].hp -= 10;
 
